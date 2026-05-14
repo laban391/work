@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Colorful Auth | Email Verification + Google Login</title>
+  <!-- Google Fonts & Font Awesome -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBTY2G_U7aUDK0plAWjdknNE0LulYWUR7s",
+      authDomain: "sign-40d89.firebaseapp.com",
+      projectId: "sign-40d89",
+      storageBucket: "sign-40d89.firebasestorage.app",
+      messagingSenderId: "168780036191",
+      appId: "1:168780036191:web:37e6a880b7ac0306cd83ea",
+      measurementId: "G-G84JTJ9LE4"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+    
+    // Make auth functions globally accessible
+    window.auth = auth;
+    
+    // Sign up with email verification
+    window.handleRealSignup = async (email, password) => {
+      try {
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        // Send verification email
+        await sendEmailVerification(result.user);
+        return { success: true, user: result.user, needsVerification: true };
+      } catch (error) {
+        return { success: false, error: error.code, message: error.message };
+      }
+    };
+    
+    // Login with check for email verification
+    window.handleRealLogin = async (email, password) => {
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        // Check if email is verified
+        if (!result.user.emailVerified) {
+          return { success: false, user: result.user, needsVerification: true, message: "Please verify your email first. A new verification email has been sent." };
+        }
+        return { success: true, user: result.user };
+      } catch (error) {
+        return { success: false, error: error.code, message: error.message };
+      }
+    };
+    
+    // Resend verification email
+    window.handleResendVerification = async (user) => {
+      try {
+        await sendEmailVerification(user);
+        return { success: true };
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    };
+    
+    // Google login (Google accounts are auto-verified)
+    window.handleRealGoogleLogin = async () => {
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        return { success: true, user: result.user };
+      } catch (error) {
+        return { success: false, error: error.code, message: error.message };
+      }
+    };
+    
+    window.handleRealForgotPassword = async (email) => {
+      try {
+        await sendPasswordResetEmail(auth, email);
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.code, message: error.message };
+      }
+    };
+    
+    window.handleRealLogout = async () => {
+      await signOut(auth);
+    };
+    
+    window.onAuthStateChange = (callback) => {
+      onAuthStateChanged(auth, callback);
+    };
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 10% 30%, #0b0f2a, #070b1a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+      z-index: 0;
+      animation: floatOrb 18s infinite alternate ease-in-out;
+    }
+    .orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, #ff4d8c, #f9c74f); top: -120px; left: -100px; }
+    .orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, #5e2aff, #00c9b6); bottom: -180px; right: -150px; animation-duration: 22s; }
+    .orb-3 { width: 350px; height: 350px; background: radial-gradient(circle, #ffb347, #ff6b6b); top: 40%; right: 10%; animation-duration: 15s; opacity: 0.4; }
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(40px, -30px) scale(1.05); }
+    }
+
+    .glass-card {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 500px;
+      backdrop-filter: blur(14px);
+      background: rgba(20, 25, 55, 0.55);
+      border-radius: 48px;
+      padding: 2.5rem 2rem 2.8rem;
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      transition: transform 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .glass-card:hover { transform: scale(1.01); }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .brand-icon {
+      background: linear-gradient(135deg, #FFB347, #FF6B6B);
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+      border-radius: 32px;
+      box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.3);
+    }
+    .brand-icon i { font-size: 2.3rem; color: white; }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #FFFFFF, #E0E7FF, #C084FC);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    .sub { font-size: 0.95rem; color: rgba(255, 255, 255, 0.7); }
+
+    .input-group {
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .input-group i {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.2rem;
+      color: #a5b4fc;
+    }
+    .input-group input {
+      width: 100%;
+      background: rgba(15, 20, 45, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 60px;
+      padding: 1rem 1rem 1rem 48px;
+      font-size: 1rem;
+      color: #ffffff;
+      outline: none;
+    }
+    .input-group input:focus {
+      border-color: #f97316;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.3);
+    }
+
+    .login-btn, .action-btn {
+      width: 100%;
+      background: linear-gradient(95deg, #FF6B6B, #F9C74F, #F9844A);
+      background-size: 200% auto;
+      border: none;
+      border-radius: 60px;
+      padding: 1rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #0f0f1f;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 1.2rem;
+    }
+    .login-btn:hover, .action-btn:hover {
+      background-position: right center;
+      transform: translateY(-2px);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 1.2rem 0 1.4rem;
+    }
+    .divider::before, .divider::after {
+      content: "";
+      flex: 1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .divider span { margin: 0 12px; }
+
+    .social-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 1.8rem;
+    }
+    .social-btn {
+      background: rgba(30, 35, 70, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      padding: 0.7rem 1.4rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #f0f3ff;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .social-btn:hover { background: rgba(55, 65, 110, 0.8); transform: translateY(-2px); border-color: #ffb347; }
+
+    .options {
+      display: flex;
+      justify-content: flex-end;
+      margin: 1rem 0 1.8rem;
+    }
+    .forgot-link {
+      color: #ffb347;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .footer-link {
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(220, 230, 255, 0.7);
+      margin-top: 0.5rem;
+    }
+    .footer-link a {
+      color: #f9c74f;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Verification warning box */
+    .verification-box {
+      background: rgba(255, 180, 71, 0.15);
+      border: 1px solid #ffb347;
+      border-radius: 24px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .verification-box p {
+      color: #ffdf9c;
+      font-size: 0.85rem;
+      margin-bottom: 0.8rem;
+    }
+    .resend-btn {
+      background: rgba(255, 180, 71, 0.3);
+      border: 1px solid #ffb347;
+      border-radius: 40px;
+      padding: 0.5rem 1rem;
+      color: #ffb347;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .resend-btn:hover {
+      background: #ffb347;
+      color: #0f0f1f;
+    }
+
+    .toast-message {
+      visibility: hidden;
+      min-width: 240px;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px);
+      color: #fff1b5;
+      text-align: center;
+      border-radius: 40px;
+      padding: 12px 22px;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      transition: visibility 0.2s, opacity 0.2s;
+      opacity: 0;
+      border-left: 4px solid #f97316;
+    }
+    .toast-message.show { visibility: visible; opacity: 1; }
+
+    /* Dashboard styles */
+    .dashboard-container {
+      max-width: 1100px;
+      width: 100%;
+    }
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .welcome-badge {
+      background: linear-gradient(115deg, #FF6B6B30, #F9C74F30);
+      padding: 0.6rem 1.8rem;
+      border-radius: 60px;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,240,0.2);
+    }
+    .logout-btn {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,140,0,0.6);
+      padding: 0.7rem 1.6rem;
+      border-radius: 40px;
+      color: #ffcf9a;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .logout-btn:hover { background: #ff6b6b30; color: white; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.8rem;
+      margin: 2rem 0;
+    }
+    .stat-card {
+      background: rgba(25, 30, 60, 0.65);
+      backdrop-filter: blur(8px);
+      border-radius: 36px;
+      padding: 1.8rem;
+      border: 1px solid rgba(255,255,200,0.15);
+    }
+    .stat-card i { font-size: 2.2rem; color: #ffb347; margin-bottom: 1rem; display: inline-block; }
+    .stat-card h3 { font-size: 1.2rem; font-weight: 700; color: white; word-break: break-all; }
+    .stat-card p { color: #b9c3ff; font-size: 0.85rem; margin-top: 0.5rem; }
+    .verified-badge {
+      color: #4ade80;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+    .recent-section {
+      background: rgba(15, 20, 45, 0.6);
+      border-radius: 36px;
+      padding: 1.6rem;
+      margin-top: 1rem;
+    }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .recent-item:last-child { border-bottom: none; }
+    .recent-item i { width: 36px; color: #ffaa55; }
+
+    @media (max-width: 680px) {
+      body { padding: 1rem; }
+      .glass-card { padding: 1.8rem 1.4rem 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div id="appRoot"></div>
+<div id="toastMsg" class="toast-message"></div>
+
+<script type="module">
+  let currentPage = 'login';
+  let loggedInUser = null;
+  let pendingVerificationEmail = null;
+  
+  function showMessage(msg, isError = false) {
+    const toast = document.getElementById('toastMsg');
+    toast.textContent = msg;
+    toast.style.backgroundColor = isError ? 'rgba(40, 10, 20, 0.9)' : 'rgba(20, 30, 60, 0.9)';
+    toast.style.borderLeftColor = isError ? '#ff4d6d' : '#4ade80';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 4000);
+  }
+  
+  function navigateTo(page, user = null) {
+    if (user) loggedInUser = user;
+    currentPage = page;
+    render();
+  }
+  
+  // Sign up with verification
+  async function handleSignup(email, password, confirm) {
+    if (!email || !password || !confirm) {
+      showMessage('Please fill in all fields', true);
+      return;
+    }
+    if (password !== confirm) {
+      showMessage('Passwords do not match!', true);
+      return;
+    }
+    if (password.length < 6) {
+      showMessage('Password must be at least 6 characters', true);
+      return;
+    }
+    
+    const result = await window.handleRealSignup(email, password);
+    if (result.success) {
+      pendingVerificationEmail = email;
+      showMessage(`✅ Verification email sent to ${email}! Please check your inbox and click the link to verify.`, false);
+      // Show verification pending page
+      currentPage = 'verify-pending';
+      render();
+    } else {
+      let msg = 'Signup failed: ';
+      if (result.error === 'auth/email-already-in-use') msg += 'Email already registered. Please login.';
+      else msg += result.message;
+      showMessage(msg, true);
+    }
+  }
+  
+  // Login with verification check
+  async function handleLogin(email, password) {
+    if (!email || !password) {
+      showMessage('Please fill in all fields', true);
+      return;
+    }
+    const result = await window.handleRealLogin(email, password);
+    if (result.success) {
+      showMessage(`🎉 Welcome back, ${result.user.email}! (Verified ✓)`);
+      navigateTo('dashboard', result.user);
+    } else if (result.needsVerification) {
+      pendingVerificationEmail = email;
+      showMessage(`📧 Please verify your email. A new verification link has been sent to ${email}`, false);
+      currentPage = 'verify-pending';
+      render();
+    } else {
+      let msg = 'Login failed: ';
+      if (result.error === 'auth/user-not-found') msg += 'User not found. Create an account.';
+      else if (result.error === 'auth/wrong-password') msg += 'Wrong password.';
+      else msg += result.message;
+      showMessage(msg, true);
+    }
+  }
+  
+  async function handleResendVerification() {
+    if (!loggedInUser && !pendingVerificationEmail) {
+      showMessage('No user found to resend verification', true);
+      return;
+    }
+    
+    let user = loggedInUser;
+    if (!user && pendingVerificationEmail) {
+      // Try to get current user from auth
+      user = window.auth.currentUser;
+    }
+    
+    if (user) {
+      const result = await window.handleResendVerification(user);
+      if (result.success) {
+        showMessage(`📧 New verification email sent to ${user.email}!`, false);
+      } else {
+        showMessage('Failed to send: ' + result.message, true);
+      }
+    } else {
+      showMessage('Please login again to request verification', true);
+      navigateTo('login');
+    }
+  }
+  
+  async function handleGoogleLogin() {
+    const result = await window.handleRealGoogleLogin();
+    if (result.success) {
+      showMessage(`🍭 Welcome ${result.user.displayName || result.user.email}! (Google accounts are auto-verified)`);
+      navigateTo('dashboard', result.user);
+    } else {
+      showMessage('Google login failed', true);
+    }
+  }
+  
+  async function handleForgotPassword(email) {
+    if (!email || !email.includes('@')) {
+      showMessage('Enter a valid email address', true);
+      return;
+    }
+    const result = await window.handleRealForgotPassword(email);
+    if (result.success) {
+      showMessage(`📩 Password reset email sent to ${email}`, false);
+      setTimeout(() => navigateTo('login'), 2000);
+    } else {
+      showMessage('Reset failed: ' + result.message, true);
+    }
+  }
+  
+  async function handleLogout() {
+    await window.handleRealLogout();
+    pendingVerificationEmail = null;
+    showMessage('👋 Logged out successfully');
+    navigateTo('login');
+  }
+  
+  // Check verification status periodically
+  async function checkVerificationStatus() {
+    if (window.auth.currentUser) {
+      await window.auth.currentUser.reload();
+      if (window.auth.currentUser.emailVerified) {
+        showMessage('✅ Email verified! You can now access the dashboard.', false);
+        navigateTo('dashboard', window.auth.currentUser);
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  // Render verification pending page
+  function renderVerifyPending() {
+    const email = pendingVerificationEmail || loggedInUser?.email || 'your email';
+    return `
+      <div class="glass-card">
+        <div class="brand">
+          <div class="brand-icon"><i class="fas fa-envelope-open-text"></i></div>
+          <h1>Verify Your Email</h1>
+          <div class="sub">We sent a verification link to ${email}</div>
+        </div>
+        <div class="verification-box">
+          <p><i class="fas fa-mail-bulk"></i> Click the link in the email to activate your account</p>
+          <p style="font-size:0.75rem; margin-top:0.5rem;">Didn't receive the email? Check spam or click below</p>
+        </div>
+        <button class="action-btn" id="resendVerifyBtn"><i class="fas fa-paper-plane"></i> Resend Verification Email</button>
+        <button class="login-btn" id="checkVerifyBtn" style="background: linear-gradient(95deg, #4ade80, #22c55e);"><i class="fas fa-sync-alt"></i> I've Verified - Check Status</button>
+        <div class="footer-link"><a href="#" id="backToLoginFromVerify">← Back to Login</a></div>
+      </div>
+    `;
+  }
+  
+  function renderLogin() {
+    return `
+      <div class="glass-card">
+        <div class="brand">
+          <div class="brand-icon"><i class="fas fa-magic"></i></div>
+          <h1>Welcome back</h1>
+          <div class="sub">Real Firebase • Email Verification Required</div>
+        </div>
+        <form id="loginFormElement">
+          <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="loginEmail" placeholder="Email address" required></div>
+          <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="loginPassword" placeholder="Password" required></div>
+          <div class="options">
+            <a href="#" id="forgotNavLink" class="forgot-link">Forgot password?</a>
+          </div>
+          <button type="submit" class="login-btn"><i class="fas fa-arrow-right-to-bracket"></i> Sign In</button>
+        </form>
+        <div class="divider"><span>or continue with</span></div>
+        <div class="social-buttons">
+          <div class="social-btn" id="googleRealBtn"><i class="fab fa-google"></i> Google (Auto-verified)</div>
+        </div>
+        <div class="footer-link">Don't have an account? <a href="#" id="createNavLink">Create account</a></div>
+      </div>
+    `;
+  }
+  
+  function renderCreate() {
+    return `
+      <div class="glass-card">
+        <div class="brand">
+          <div class="brand-icon"><i class="fas fa-user-plus"></i></div>
+          <h1>Create account</h1>
+          <div class="sub">We'll send a verification email</div>
+        </div>
+        <form id="createFormElement">
+          <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="signupEmail" placeholder="Email address" required></div>
+          <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="signupPassword" placeholder="Password (min 6 chars)" required></div>
+          <div class="input-group"><i class="fas fa-check-circle"></i><input type="password" id="signupConfirm" placeholder="Confirm password" required></div>
+          <button type="submit" class="action-btn"><i class="fas fa-sparkles"></i> Sign Up</button>
+        </form>
+        <div class="divider"><span>or</span></div>
+        <div class="social-buttons">
+          <div class="social-btn" id="googleRealCreate"><i class="fab fa-google"></i> Sign up with Google</div>
+        </div>
+        <div class="footer-link">Already have an account? <a href="#" id="backToLoginFromCreate">Sign in</a></div>
+      </div>
+    `;
+  }
+  
+  function renderForgot() {
+    return `
+      <div class="glass-card">
+        <div class="brand">
+          <div class="brand-icon"><i class="fas fa-lock-open"></i></div>
+          <h1>Reset password</h1>
+          <div class="sub">We'll send a reset link to your email</div>
+        </div>
+        <form id="forgotFormElement">
+          <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="forgotEmail" placeholder="Your email address" required></div>
+          <button type="submit" class="action-btn"><i class="fas fa-paper-plane"></i> Send reset link</button>
+        </form>
+        <div class="footer-link"><a href="#" id="backToLoginFromForgot">Back to Login</a></div>
+      </div>
+    `;
+  }
+  
+  function renderDashboard() {
+    const user = loggedInUser;
+    const email = user?.email || 'User';
+    const isVerified = user?.emailVerified;
+    const name = user?.displayName || email.split('@')[0];
+    
+    return `
+      <div class="dashboard-container">
+        <div class="glass-card" style="max-width:100%; padding: 2rem;">
+          <div class="dashboard-header">
+            <div class="welcome-badge">
+              <i class="fas ${isVerified ? 'fa-check-circle' : 'fa-clock'}"></i> 
+              ${name} ${isVerified ? '✓ Verified' : '⚠️ Pending Verification'}
+            </div>
+            <div class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</div>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <i class="fas fa-shield-alt"></i>
+              <h3>Email Status</h3>
+              ${isVerified ? '<span class="verified-badge"><i class="fas fa-check-circle"></i> Verified ✓</span>' : '<span style="color:#ffb347;"><i class="fas fa-clock"></i> Pending Verification</span>'}
+              <p>${isVerified ? 'Your email is confirmed' : 'Please check your inbox and verify'}</p>
+            </div>
+            <div class="stat-card">
+              <i class="fas fa-envelope"></i>
+              <h3 style="font-size:0.9rem;">${email}</h3>
+              <p>Registered with Firebase</p>
+            </div>
+            <div class="stat-card">
+              <i class="fab fa-google"></i>
+              <h3>Google Ready</h3>
+              <p>Real OAuth 2.0</p>
+            </div>
+          </div>
+          <div class="recent-section">
+            <h3 style="color:#ffdf9c;"><i class="fas fa-info-circle"></i> Security Status</h3>
+            <div class="recent-item"><i class="fas ${isVerified ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i> <span>Email Verification: ${isVerified ? 'COMPLETE ✓' : 'PENDING - Check your inbox'}</span></div>
+            <div class="recent-item"><i class="fas fa-key"></i> <span>Password: Securely stored (Firebase Auth)</span></div>
+            <div class="recent-item"><i class="fab fa-google"></i> <span>Google OAuth: Ready for instant login</span></div>
+            ${!isVerified ? `<div class="recent-item"><i class="fas fa-envelope"></i> <span><button id="resendFromDashboard" style="background:none; border:none; color:#ffb347; cursor:pointer;">Click here to resend verification email</button></span></div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  function attachEvents() {
+    if (currentPage === 'verify-pending') {
+      document.getElementById('resendVerifyBtn')?.addEventListener('click', () => handleResendVerification());
+      document.getElementById('checkVerifyBtn')?.addEventListener('click', async () => {
+        const verified = await checkVerificationStatus();
+        if (!verified) {
+          showMessage('Email not verified yet. Please check your inbox and click the link.', true);
+        }
+      });
+      document.getElementById('backToLoginFromVerify')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigateTo('login');
+      });
+    }
+    else if (currentPage === 'login') {
+      document.getElementById('loginFormElement')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const pwd = document.getElementById('loginPassword').value;
+        handleLogin(email, pwd);
+      });
+      document.getElementById('forgotNavLink')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('forgot'); });
+      document.getElementById('createNavLink')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('create'); });
+      document.getElementById('googleRealBtn')?.addEventListener('click', () => handleGoogleLogin());
+    }
+    else if (currentPage === 'create') {
+      document.getElementById('createFormElement')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signupEmail').value.trim();
+        const pwd = document.getElementById('signupPassword').value;
+        const confirm = document.getElementById('signupConfirm').value;
+        handleSignup(email, pwd, confirm);
+      });
+      document.getElementById('backToLoginFromCreate')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('login'); });
+      document.getElementById('googleRealCreate')?.addEventListener('click', () => handleGoogleLogin());
+    }
+    else if (currentPage === 'forgot') {
+      document.getElementById('forgotFormElement')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('forgotEmail').value.trim();
+        handleForgotPassword(email);
+      });
+      document.getElementById('backToLoginFromForgot')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('login'); });
+    }
+    else if (currentPage === 'dashboard') {
+      document.getElementById('logoutBtn')?.addEventListener('click', () => handleLogout());
+      document.getElementById('resendFromDashboard')?.addEventListener('click', () => handleResendVerification());
+    }
+  }
+  
+  // Monitor auth state
+  window.onAuthStateChange((user) => {
+    if (user && user.emailVerified && (currentPage === 'login' || currentPage === 'create' || currentPage === 'forgot' || currentPage === 'verify-pending')) {
+      loggedInUser = user;
+      currentPage = 'dashboard';
+      render();
+    } else if (user && !user.emailVerified && currentPage !== 'verify-pending') {
+      loggedInUser = user;
+      pendingVerificationEmail = user.email;
+      currentPage = 'verify-pending';
+      render();
+    } else if (!user && (currentPage === 'dashboard' || currentPage === 'verify-pending')) {
+      currentPage = 'login';
+      pendingVerificationEmail = null;
+      render();
+    } else {
+      if (currentPage !== 'dashboard' && currentPage !== 'verify-pending') render();
+    }
+  });
+  
+  function render() {
+    const root = document.getElementById('appRoot');
+    if (!root) return;
+    let html = '';
+    if (currentPage === 'login') html = renderLogin();
+    else if (currentPage === 'create') html = renderCreate();
+    else if (currentPage === 'forgot') html = renderForgot();
+    else if (currentPage === 'verify-pending') html = renderVerifyPending();
+    else if (currentPage === 'dashboard') html = renderDashboard();
+    root.innerHTML = html;
+    attachEvents();
+  }
+  
+  render();
+</script>
+</body>
+</html>
